@@ -623,4 +623,52 @@ export const generateChatResponse = async (message: string): Promise<LLMResponse
   Object.assign(enhancedError, errorInfo);
   
   throw enhancedError;
+};
+
+export const initializeGeminiModel = async (apiKey: string, modelName: string = 'gemini-pro') => {
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    model = genAI.getGenerativeModel({ model: modelName });
+
+    console.log(`${modelName} 모델 초기화 성공`);
+    return true;
+  } catch (error) {
+    console.error('Gemini 모델 초기화 실패:', error);
+    return false;
+  }
+};
+
+export const generateGeminiResponse = async (
+  prompt: string,
+  isStreaming: boolean = false,
+  temperature: number = 0.7
+) => {
+  if (!model) {
+    throw new Error('Gemini 모델이 초기화되지 않았습니다.');
+  }
+
+  try {
+    const request = {
+      contents: [{
+        role: 'user',
+        parts: [{ text: prompt }]
+      }],
+      generationConfig: {
+        temperature,
+        maxOutputTokens: 2048,
+        topP: 0.8,
+        topK: 40,
+      }
+    };
+
+    if (isStreaming) {
+      return await model.generateContentStream(request);
+    } else {
+      const result = await model.generateContent(request);
+      return result.response.text();
+    }
+  } catch (error) {
+    console.error('Gemini 응답 생성 실패:', error);
+    throw error;
+  }
 }; 

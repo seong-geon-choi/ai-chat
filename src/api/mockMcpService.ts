@@ -73,7 +73,8 @@ const mockMessages: Record<string, Message[]> = {
       role: 'user',
       timestamp: new Date('2025-04-10T10:00:00Z').getTime(),
       createdAt: new Date('2025-04-10T10:00:00Z').getTime(),
-      updatedAt: new Date('2025-04-10T10:00:00Z').getTime()
+      updatedAt: new Date('2025-04-10T10:00:00Z').getTime(),
+      mcpResults: []
     },
     {
       id: '102',
@@ -82,7 +83,8 @@ const mockMessages: Record<string, Message[]> = {
       role: 'assistant',
       timestamp: new Date('2025-04-10T10:00:30Z').getTime(),
       createdAt: new Date('2025-04-10T10:00:30Z').getTime(),
-      updatedAt: new Date('2025-04-10T10:00:30Z').getTime()
+      updatedAt: new Date('2025-04-10T10:00:30Z').getTime(),
+      mcpResults: []
     },
     {
       id: '103',
@@ -91,7 +93,8 @@ const mockMessages: Record<string, Message[]> = {
       role: 'user',
       timestamp: new Date('2025-04-10T10:15:00Z').getTime(),
       createdAt: new Date('2025-04-10T10:15:00Z').getTime(),
-      updatedAt: new Date('2025-04-10T10:15:00Z').getTime()
+      updatedAt: new Date('2025-04-10T10:15:00Z').getTime(),
+      mcpResults: []
     },
     {
       id: '104',
@@ -100,7 +103,8 @@ const mockMessages: Record<string, Message[]> = {
       role: 'assistant',
       timestamp: new Date('2025-04-10T10:15:30Z').getTime(),
       createdAt: new Date('2025-04-10T10:15:30Z').getTime(),
-      updatedAt: new Date('2025-04-10T10:15:30Z').getTime()
+      updatedAt: new Date('2025-04-10T10:15:30Z').getTime(),
+      mcpResults: []
     }
   ],
   '2': [
@@ -111,7 +115,8 @@ const mockMessages: Record<string, Message[]> = {
       role: 'user',
       timestamp: new Date('2025-04-09T15:00:00Z').getTime(),
       createdAt: new Date('2025-04-09T15:00:00Z').getTime(),
-      updatedAt: new Date('2025-04-09T15:00:00Z').getTime()
+      updatedAt: new Date('2025-04-09T15:00:00Z').getTime(),
+      mcpResults: []
     },
     {
       id: '202',
@@ -120,7 +125,8 @@ const mockMessages: Record<string, Message[]> = {
       role: 'assistant',
       timestamp: new Date('2025-04-09T15:00:30Z').getTime(),
       createdAt: new Date('2025-04-09T15:00:30Z').getTime(),
-      updatedAt: new Date('2025-04-09T15:00:30Z').getTime()
+      updatedAt: new Date('2025-04-09T15:00:30Z').getTime(),
+      mcpResults: []
     }
   ]
 };
@@ -128,7 +134,7 @@ const mockMessages: Record<string, Message[]> = {
 // Mock API 함수들
 
 // SQL 쿼리 실행 함수
-export const executeSqlQuery = async (sql: string): Promise<DatabaseRecord[]> => {
+export const executeSqlQuery = async (sql: string): Promise<Message[] | Conversation[]> => {
   console.log('Mock SQL 쿼리 실행:', sql);
   
   // SELECT * FROM conversations ORDER BY updatedAt DESC
@@ -203,22 +209,19 @@ const getProviderName = (modelId: string): string => {
   return providerNames[model.provider] || model.provider;
 };
 
-// 사용 가능한 모델 가져오기
-export const getAvailableModels = async (): Promise<LLMModel[]> => {
-  console.log('Mock 모델 목록 요청');
-  return [...mockModels];
-};
-
 // 대화 목록 가져오기
-export const getConversations = async (): Promise<DatabaseRecord[]> => {
-  console.log('Mock 대화 목록 요청');
+export const getConversations = async (): Promise<Conversation[]> => {
   return [...mockConversations];
 };
 
 // 대화 메시지 가져오기
-export const getConversationMessages = async (conversationId: string): Promise<DatabaseRecord[]> => {
-  console.log(`Mock 메시지 목록 요청: 대화ID=${conversationId}`);
+export const getConversationMessages = async (conversationId: string): Promise<Message[]> => {
   return mockMessages[conversationId] || [];
+};
+
+// 사용 가능한 모델 목록 가져오기
+export const getAvailableModels = async (): Promise<LLMModel[]> => {
+  return [...mockModels];
 };
 
 // Export everything as a single object

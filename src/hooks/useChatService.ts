@@ -128,7 +128,8 @@ export const useChatService = () => {
       conversationId: targetConversationId,
       timestamp: Date.now(),
       createdAt: Date.now(),
-      updatedAt: Date.now()
+      updatedAt: Date.now(),
+      mcpResults: []
     };
 
     setConversations(prev => prev.map(conv => {
@@ -156,7 +157,8 @@ export const useChatService = () => {
         conversationId: targetConversationId,
         timestamp: Date.now(),
         createdAt: Date.now(),
-        updatedAt: Date.now()
+        updatedAt: Date.now(),
+        mcpResults: []
       };
 
       setConversations(prev => prev.map(conv => {
@@ -178,7 +180,8 @@ export const useChatService = () => {
         conversationId: targetConversationId,
         timestamp: Date.now(),
         createdAt: Date.now(),
-        updatedAt: Date.now()
+        updatedAt: Date.now(),
+        mcpResults: []
       };
 
       setConversations(prev => prev.map(conv => {

@@ -2,6 +2,9 @@ export interface McpConfig {
   baseUrl: string;
   apiKey?: string;
   tools: McpTool[];
+  models: LLMModel[];
+  apiKeys: ApiKeyMap;
+  cacheTimeout: number;
 }
 
 export interface McpTool {
@@ -12,13 +15,25 @@ export interface McpTool {
   endpoint: string;
   parameters: McpToolParameter[];
   config?: Record<string, any>;
+  priority: number;
+  contextKeywords: string[];
+  category: McpToolCategory;
 }
+
+export type McpToolCategory = 'database' | 'filesystem' | 'system' | 'api' | 'other';
 
 export interface McpToolParameter {
   name: string;
   type: 'string' | 'number' | 'boolean' | 'array' | 'object';
   description: string;
   required: boolean;
+  extractionRules?: ParameterExtractionRule[];
+}
+
+export interface ParameterExtractionRule {
+  pattern: string;
+  group?: number;
+  transform?: (value: string) => any;
 }
 
 export interface LLMModel {
@@ -27,13 +42,20 @@ export interface LLMModel {
   provider: string;
   description: string;
   apiName: string;
+  maxTokens?: number;
+  temperature?: number;
+  apiEndpoint?: string;
 }
 
-export interface Message extends DatabaseRecord {
-  role: 'user' | 'assistant' | 'system';
+export interface Message {
+  id: string;
+  conversationId: string;
+  role: 'user' | 'assistant';
   content: string;
   timestamp: number;
-  conversationId?: string;
+  createdAt: number;
+  updatedAt: number;
+  mcpResults: McpToolResult[];
 }
 
 export interface Conversation extends DatabaseRecord {
@@ -70,6 +92,30 @@ export interface ModelConfig extends LLMModel {
   apiKeyRequired: boolean;
   apiKeyName: string;
   apiKeyDescription: string;
-  apiEndpoint: string;
   maxTokens: number;
+  icon?: string;
 }
+
+export interface McpToolResult {
+  success: boolean;
+  toolName?: string;
+  parameters?: Record<string, any>;
+  data?: any;
+  error?: string;
+  timestamp?: number;
+}
+
+export interface McpContext {
+  recentTools: string[];
+  conversationContext: string[];
+  userPreferences: Record<string, any>;
+}
+
+export interface CacheEntry {
+  result: any;
+  timestamp: number;
+  params: Record<string, any>;
+}
+
+export * from './mcp';
+export * from './google-genai';

@@ -106,8 +106,8 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
   };
 
   return (
-    <Box>
-      <Typography variant="subtitle1" gutterBottom>
+    <Box sx={{ bgcolor: '#ffffff', borderRadius: 2, p: 2, boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }}>
+      <Typography variant="subtitle1" gutterBottom sx={{ color: '#2c3e50', fontSize: '1rem', fontWeight: 500, mb: 2 }}>
         AI 모델 설정
       </Typography>
 
@@ -118,16 +118,24 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
           onChange={() => handleModelSelect(model.id)}
           sx={{
             mb: 1,
-            border: model.id === currentModelId ? 1 : 0,
-            borderColor: 'primary.main',
-            '&:before': { display: 'none' }
+            border: model.id === currentModelId ? '1px solid #4b6bfb' : '1px solid #e0e0e0',
+            borderRadius: '4px !important',
+            boxShadow: 'none',
+            '&:before': { display: 'none' },
+            overflow: 'hidden'
           }}
         >
-          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+          <AccordionSummary 
+            expandIcon={<ExpandMoreIcon sx={{ color: '#4b6bfb' }} />}
+            sx={{ 
+              bgcolor: model.id === currentModelId ? '#f0f7ff' : '#ffffff',
+              '&:hover': { bgcolor: '#f8f9fa' }
+            }}
+          >
             <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
               <Box sx={{ flexGrow: 1 }}>
-                <Typography variant="subtitle2">{model.name}</Typography>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="subtitle2" sx={{ color: '#2c3e50', fontWeight: 500 }}>{model.name}</Typography>
+                <Typography variant="caption" sx={{ color: '#657786' }}>
                   {model.provider}
                 </Typography>
               </Box>
@@ -137,23 +145,23 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
                   icon={apiKeys[model.id] ? <CheckCircleIcon /> : <ErrorIcon />}
                   label={apiKeys[model.id] ? "API 키 설정됨" : "API 키 필요"}
                   color={apiKeys[model.id] ? "success" : "warning"}
-                  sx={{ ml: 1 }}
+                  sx={{ ml: 1, height: '24px', '& .MuiChip-label': { fontSize: '0.7rem' } }}
                 />
               )}
             </Box>
           </AccordionSummary>
-          <AccordionDetails>
+          <AccordionDetails sx={{ bgcolor: '#ffffff', p: 2 }}>
             <Box>
-              <Typography variant="body2" sx={{ mb: 2 }}>
+              <Typography variant="body2" sx={{ mb: 2, color: '#2c3e50', fontSize: '0.875rem', lineHeight: 1.6 }}>
                 {model.description}
               </Typography>
 
               {model.apiKeyRequired && (
-                <Paper variant="outlined" sx={{ p: 2 }}>
-                  <Typography variant="subtitle2" gutterBottom>
+                <Paper variant="outlined" sx={{ p: 2, border: '1px solid #e0e0e0', mb: 2 }}>
+                  <Typography variant="subtitle2" gutterBottom sx={{ color: '#2c3e50', fontSize: '0.875rem' }}>
                     API 키 설정
                   </Typography>
-                  <Typography variant="caption" display="block" gutterBottom>
+                  <Typography variant="caption" display="block" gutterBottom sx={{ color: '#657786', mb: 1 }}>
                     {model.apiKeyDescription}
                   </Typography>
                   <TextField
@@ -163,6 +171,25 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
                     value={apiKeys[model.id] || ''}
                     onChange={(e) => handleApiKeyChange(model.id, e.target.value)}
                     type={showApiKey[model.id] ? 'text' : 'password'}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1,
+                        '& fieldset': {
+                          borderColor: '#e0e0e0',
+                        },
+                        '&:hover fieldset': {
+                          borderColor: '#4b6bfb',
+                        },
+                        '& input': {
+                          color: '#2c3e50',
+                          '&::placeholder': {
+                            color: '#9e9e9e',
+                            opacity: 1
+                          }
+                        },
+                        backgroundColor: '#ffffff'
+                      }
+                    }}
                     InputProps={{
                       startAdornment: (
                         <InputAdornment position="start">
@@ -175,6 +202,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
                             size="small"
                             onClick={() => toggleApiKeyVisibility(model.id)}
                             edge="end"
+                            sx={{ color: '#657786' }}
                           >
                             {showApiKey[model.id] ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
                           </IconButton>
@@ -186,7 +214,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
               )}
 
               {model.maxTokens && (
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                <Typography variant="caption" sx={{ color: '#657786', mt: 1, display: 'block', fontSize: '0.75rem' }}>
                   최대 토큰 수: {model.maxTokens.toLocaleString()}
                 </Typography>
               )}

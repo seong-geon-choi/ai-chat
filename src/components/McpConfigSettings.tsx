@@ -1,552 +1,355 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
-  TextField,
   Button,
+  CircularProgress,
+  TextField,
+  Paper,
   IconButton,
+  Tooltip,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
-  Switch,
-  Divider,
-  Tooltip,
-  Paper,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  FormControlLabel,
-  Checkbox,
-  Card,
-  CardContent,
-  Stack
+  Snackbar,
+  Alert
 } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
-import SettingsIcon from '@mui/icons-material/Settings';
-import SaveIcon from '@mui/icons-material/Save';
-import CodeIcon from '@mui/icons-material/Code';
-import TuneIcon from '@mui/icons-material/Tune';
-import { McpConfig, McpTool, McpToolParameter, LLMModel } from '../types';
-import { loadMcpConfig, saveMcpConfig, addTool, removeTool, toggleToolEnabled } from '../services/mcpConfigService';
-import { useApiKeys } from '../hooks/useApiKeys';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import RestartAltIcon from '@mui/icons-material/RestartAlt';
 
-// API 키 관리 컴포넌트
-interface ApiKeyManagerProps {
-  models: LLMModel[];
-  onApiKeyChange: (modelId: string, apiKey: string) => Promise<void>;
+interface McpConfig {
+  server: {
+    host: string;
+    port: number;
+    protocol: string;
+  };
+  api: {
+    baseUrl: string;
+    timeout: number;
+  };
+  database: {
+    type: string;
+    host: string;
+    port: number;
+    username: string;
+    password: string;
+    database: string;
+  };
+  logging: {
+    level: string;
+    file: string;
+  };
 }
 
-const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ models, onApiKeyChange }) => {
-  const { apiKeys, error, saveApiKey, removeApiKey } = useApiKeys();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<LLMModel | null>(null);
-  const [newApiKey, setNewApiKey] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleOpenDialog = (model: LLMModel) => {
-    setSelectedModel(model);
-    setNewApiKey(apiKeys[model.id] || '');
-    setIsDialogOpen(true);
-  };
-
-  const handleCloseDialog = () => {
-    setIsDialogOpen(false);
-    setSelectedModel(null);
-    setNewApiKey('');
-  };
-
-  const handleSaveApiKey = async () => {
-    if (!selectedModel) return;
-    
-    try {
-      setIsLoading(true);
-      await onApiKeyChange(selectedModel.id, newApiKey);
-      saveApiKey(selectedModel.id, newApiKey);
-      handleCloseDialog();
-    } catch (err) {
-      console.error('API 키 저장 중 오류:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleRemoveApiKey = async (modelId: string) => {
-    try {
-      await onApiKeyChange(modelId, '');
-      removeApiKey(modelId);
-    } catch (err) {
-      console.error('API 키 삭제 중 오류:', err);
-    }
-  };
-
-  return (
-    <Box>
-      <Typography variant="h6" gutterBottom>
-        API 키 관리
-      </Typography>
-      {error && (
-        <Typography color="error" gutterBottom>
-          {error}
-        </Typography>
-      )}
-      <List>
-        {models.map((model) => (
-          <ListItem key={model.id}>
-            <ListItemText
-              primary={model.name}
-              secondary={apiKeys[model.id] ? '설정됨' : '설정되지 않음'}
-            />
-            <ListItemSecondaryAction>
-              <Tooltip title="API 키 설정">
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={() => handleOpenDialog(model)}
-                >
-                  {apiKeys[model.id] ? '수정' : '설정'}
-                </Button>
-              </Tooltip>
-              {apiKeys[model.id] && (
-                <Tooltip title="API 키 삭제">
-                  <IconButton
-                    edge="end"
-                    onClick={() => handleRemoveApiKey(model.id)}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                </Tooltip>
-              )}
-            </ListItemSecondaryAction>
-          </ListItem>
-        ))}
-      </List>
-
-      <Dialog open={isDialogOpen} onClose={handleCloseDialog}>
-        <DialogTitle>
-          {selectedModel?.name} API 키 {apiKeys[selectedModel?.id || ''] ? '수정' : '설정'}
-        </DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="API 키"
-            type="password"
-            fullWidth
-            value={newApiKey}
-            onChange={(e) => setNewApiKey(e.target.value)}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>취소</Button>
-          <Button
-            onClick={handleSaveApiKey}
-            disabled={isLoading}
-            variant="contained"
-            color="primary"
-          >
-            저장
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
-  );
-};
-
-// 도구 파라미터 편집기 컴포넌트
-interface ParameterEditorProps {
-  parameters: McpToolParameter[];
-  onParametersChange: (parameters: McpToolParameter[]) => void;
-}
-
-const ParameterEditor: React.FC<ParameterEditorProps> = ({ parameters, onParametersChange }) => {
-  const [newParamName, setNewParamName] = useState('');
-  const [newParamType, setNewParamType] = useState<'string' | 'number' | 'boolean' | 'array' | 'object'>('string');
-  const [newParamDescription, setNewParamDescription] = useState('');
-  const [newParamRequired, setNewParamRequired] = useState(true);
-
-  const handleAddParameter = () => {
-    if (newParamName) {
-      const newParam: McpToolParameter = {
-        name: newParamName,
-        type: newParamType,
-        description: newParamDescription,
-        required: newParamRequired
-      };
-      onParametersChange([...parameters, newParam]);
-      setNewParamName('');
-      setNewParamType('string');
-      setNewParamDescription('');
-      setNewParamRequired(true);
-    }
-  };
-
-  const handleRemoveParameter = (index: number) => {
-    const updatedParams = [...parameters];
-    updatedParams.splice(index, 1);
-    onParametersChange(updatedParams);
-  };
-
-  return (
-    <Box>
-      <Typography variant="h6" gutterBottom>
-        파라미터
-      </Typography>
-      <List>
-        {parameters.map((param, index) => (
-          <ListItem key={index}>
-            <ListItemText
-              primary={param.name}
-              secondary={`${param.type} - ${param.description} (${param.required ? '필수' : '선택'})`}
-            />
-            <ListItemSecondaryAction>
-              <IconButton edge="end" onClick={() => handleRemoveParameter(index)}>
-                <DeleteIcon />
-              </IconButton>
-            </ListItemSecondaryAction>
-          </ListItem>
-        ))}
-      </List>
-      <Box sx={{ mt: 2 }}>
-        <TextField
-          label="파라미터 이름"
-          value={newParamName}
-          onChange={(e) => setNewParamName(e.target.value)}
-          size="small"
-          sx={{ mr: 1 }}
-        />
-        <FormControl size="small" sx={{ mr: 1, minWidth: 120 }}>
-          <InputLabel>타입</InputLabel>
-          <Select
-            value={newParamType}
-            onChange={(e) => setNewParamType(e.target.value as any)}
-            label="타입"
-          >
-            <MenuItem value="string">문자열</MenuItem>
-            <MenuItem value="number">숫자</MenuItem>
-            <MenuItem value="boolean">불리언</MenuItem>
-            <MenuItem value="array">배열</MenuItem>
-            <MenuItem value="object">객체</MenuItem>
-          </Select>
-        </FormControl>
-        <TextField
-          label="설명"
-          value={newParamDescription}
-          onChange={(e) => setNewParamDescription(e.target.value)}
-          size="small"
-          sx={{ mr: 1 }}
-        />
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={newParamRequired}
-              onChange={(e) => setNewParamRequired(e.target.checked)}
-              size="small"
-            />
-          }
-          label="필수"
-        />
-        <Button
-          variant="contained"
-          size="small"
-          onClick={handleAddParameter}
-          disabled={!newParamName}
-          startIcon={<AddIcon />}
-        >
-          추가
-        </Button>
-      </Box>
-    </Box>
-  );
-};
-
-// 도구 관리 컴포넌트
-interface ToolManagerProps {
-  tools: McpTool[];
-  onToolsChange: (tools: McpTool[]) => void;
-}
-
-const ToolManager: React.FC<ToolManagerProps> = ({ tools, onToolsChange }) => {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingTool, setEditingTool] = useState<McpTool | null>(null);
-  const [toolName, setToolName] = useState('');
-  const [toolId, setToolId] = useState('');
-  const [toolDescription, setToolDescription] = useState('');
-  const [toolEndpoint, setToolEndpoint] = useState('');
-  const [toolParameters, setToolParameters] = useState<McpToolParameter[]>([]);
-
-  const handleOpenDialog = (tool?: McpTool) => {
-    if (tool) {
-      setEditingTool(tool);
-      setToolId(tool.id);
-      setToolName(tool.name);
-      setToolDescription(tool.description);
-      setToolEndpoint(tool.endpoint);
-      setToolParameters(tool.parameters);
-    } else {
-      setEditingTool(null);
-      setToolId('');
-      setToolName('');
-      setToolDescription('');
-      setToolEndpoint('');
-      setToolParameters([]);
-    }
-    setIsDialogOpen(true);
-  };
-
-  const handleCloseDialog = () => {
-    setIsDialogOpen(false);
-    setEditingTool(null);
-  };
-
-  const handleSaveTool = () => {
-    const tool: McpTool = {
-      id: toolId,
-      name: toolName,
-      description: toolDescription,
-      endpoint: toolEndpoint,
-      parameters: toolParameters,
-      enabled: editingTool ? editingTool.enabled : true
-    };
-
-    const updatedTools = editingTool
-      ? tools.map((t) => (t.id === tool.id ? tool : t))
-      : [...tools, tool];
-
-    onToolsChange(updatedTools);
-    handleCloseDialog();
-  };
-
-  const handleRemoveTool = (toolId: string) => {
-    const updatedTools = tools.filter((t) => t.id !== toolId);
-    onToolsChange(updatedTools);
-  };
-
-  const handleToggleToolEnabled = (toolId: string) => {
-    const updatedTools = tools.map((t) =>
-      t.id === toolId ? { ...t, enabled: !t.enabled } : t
-    );
-    onToolsChange(updatedTools);
-  };
-
-  return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-        <Typography variant="h6">도구 관리</Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => handleOpenDialog()}
-        >
-          도구 추가
-        </Button>
-      </Box>
-      <List>
-        {tools.map((tool) => (
-          <ListItem key={tool.id}>
-            <ListItemText
-              primary={tool.name}
-              secondary={tool.description}
-            />
-            <ListItemSecondaryAction>
-              <Switch
-                edge="start"
-                checked={tool.enabled}
-                onChange={() => handleToggleToolEnabled(tool.id)}
-              />
-              <IconButton onClick={() => handleOpenDialog(tool)}>
-                <EditIcon />
-              </IconButton>
-              <IconButton edge="end" onClick={() => handleRemoveTool(tool.id)}>
-                <DeleteIcon />
-              </IconButton>
-            </ListItemSecondaryAction>
-          </ListItem>
-        ))}
-      </List>
-
-      <Dialog open={isDialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
-        <DialogTitle>
-          {editingTool ? '도구 수정' : '도구 추가'}
-        </DialogTitle>
-        <DialogContent>
-          <TextField
-            label="도구 ID"
-            value={toolId}
-            onChange={(e) => setToolId(e.target.value)}
-            fullWidth
-            margin="normal"
-          />
-          <TextField
-            label="도구 이름"
-            value={toolName}
-            onChange={(e) => setToolName(e.target.value)}
-            fullWidth
-            margin="normal"
-          />
-          <TextField
-            label="설명"
-            value={toolDescription}
-            onChange={(e) => setToolDescription(e.target.value)}
-            fullWidth
-            margin="normal"
-            multiline
-            rows={3}
-          />
-          <TextField
-            label="엔드포인트"
-            value={toolEndpoint}
-            onChange={(e) => setToolEndpoint(e.target.value)}
-            fullWidth
-            margin="normal"
-          />
-          <Box sx={{ mt: 2 }}>
-            <ParameterEditor
-              parameters={toolParameters}
-              onParametersChange={setToolParameters}
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>취소</Button>
-          <Button
-            onClick={handleSaveTool}
-            variant="contained"
-            color="primary"
-            disabled={!toolId || !toolName}
-          >
-            저장
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
-  );
-};
-
-// 메인 설정 컴포넌트
 interface McpConfigSettingsProps {
-  onConfigChange: (config: McpConfig) => Promise<void>;
-  error?: string;
-  isLoading?: boolean;
+  onConfigChange: (config: McpConfig) => void;
+  error: string | null;
+  isLoading: boolean;
 }
+
+const defaultConfig: McpConfig = {
+  server: {
+    host: "localhost",
+    port: 3001,
+    protocol: "http"
+  },
+  api: {
+    baseUrl: "/api",
+    timeout: 30000
+  },
+  database: {
+    type: "mysql",
+    host: "localhost",
+    port: 3306,
+    username: "root",
+    password: "",
+    database: "mcp_db"
+  },
+  logging: {
+    level: "info",
+    file: "mcp.log"
+  }
+};
 
 const McpConfigSettings: React.FC<McpConfigSettingsProps> = ({
   onConfigChange,
-  error: externalError,
-  isLoading: externalIsLoading = false
+  error,
+  isLoading = false
 }) => {
-  const [mcpConfig, setMcpConfig] = useState<McpConfig>(loadMcpConfig());
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [baseUrl, setBaseUrl] = useState(mcpConfig.baseUrl);
-  const [localIsLoading, setLocalIsLoading] = useState(false);
-  const [localError, setLocalError] = useState('');
+  const [config, setConfig] = useState<McpConfig>(defaultConfig);
+  const [configText, setConfigText] = useState<string>('');
+  const [jsonError, setJsonError] = useState<string>('');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [showError, setShowError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
-  const isLoading = externalIsLoading || localIsLoading;
-  const error = externalError || localError;
+  useEffect(() => {
+    // 초기 설정값 로드
+    const savedConfig = localStorage.getItem('mcpConfig');
+    if (savedConfig) {
+      try {
+        const parsed = JSON.parse(savedConfig) as Partial<McpConfig>;
+        setConfig(parsed as McpConfig);
+        setConfigText(JSON.stringify(parsed, null, 2));
+      } catch (e) {
+        console.error('설정 파싱 오류:', e);
+        setConfig(defaultConfig);
+        setConfigText(JSON.stringify(defaultConfig, null, 2));
+      }
+    } else {
+      setConfig(defaultConfig);
+      setConfigText(JSON.stringify(defaultConfig, null, 2));
+    }
+  }, []);
 
-  const handleSaveBaseUrl = () => {
-    const updatedConfig = {
-      ...mcpConfig,
-      baseUrl
-    };
-    setMcpConfig(updatedConfig);
-    saveMcpConfig(updatedConfig);
-    if (onConfigChange) onConfigChange(updatedConfig);
+  useEffect(() => {
+    if (error || jsonError) {
+      setErrorMessage(error || jsonError);
+      setShowError(true);
+    }
+  }, [error, jsonError]);
+
+  const handleSave = () => {
+    try {
+      const parsedConfig = JSON.parse(configText) as Partial<McpConfig>;
+      const finalConfig = { ...defaultConfig, ...parsedConfig } as McpConfig;
+      localStorage.setItem('mcpConfig', JSON.stringify(finalConfig));
+      setConfig(finalConfig);
+      onConfigChange(finalConfig);
+      setJsonError('');
+      setIsDialogOpen(false);
+    } catch (e) {
+      console.error('설정 저장 오류:', e);
+      setJsonError('유효하지 않은 JSON 형식입니다.');
+    }
   };
 
-  const handleToolsChange = (tools: McpTool[]) => {
-    const updatedConfig = {
-      ...mcpConfig,
-      tools
-    };
-    setMcpConfig(updatedConfig);
-    saveMcpConfig(updatedConfig);
-    if (onConfigChange) onConfigChange(updatedConfig);
+  const handleReset = () => {
+    setConfig(defaultConfig);
+    setConfigText(JSON.stringify(defaultConfig, null, 2));
+    setJsonError('');
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(configText);
+  };
+
+  const handleEdit = () => {
+    setConfigText(JSON.stringify(config, null, 2));
+    setIsDialogOpen(true);
   };
 
   return (
-    <Box>
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h5" sx={{ flexGrow: 1 }}>
-            MCP 설정
+    <Box sx={{ 
+      backgroundColor: '#ffffff', 
+      borderRadius: 2, 
+      p: 2, 
+      boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+    }}>
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        mb: 2 
+      }}>
+        <Typography variant="h6" sx={{ 
+          color: '#2c3e50', 
+          fontSize: '1rem', 
+          fontWeight: 500
+        }}>
+          MCP 서버 설정
+        </Typography>
+        <Box>
+          <Tooltip title="설정 초기화">
+            <IconButton 
+              onClick={handleReset}
+              size="small"
+              sx={{ mr: 1 }}
+            >
+              <RestartAltIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="설정 수정">
+            <IconButton 
+              onClick={handleEdit}
+              size="small"
+              color="primary"
+              sx={{
+                color: '#4b6bfb',
+                '&:hover': {
+                  color: '#3955cc',
+                }
+              }}
+            >
+              <EditIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      </Box>
+
+      <Snackbar
+        open={showError}
+        autoHideDuration={5000}
+        onClose={() => setShowError(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={() => setShowError(false)} 
+          severity="error"
+          sx={{ 
+            width: '100%',
+            backgroundColor: '#ffebee',
+            color: '#c62828'
+          }}
+        >
+          {errorMessage}
+        </Alert>
+      </Snackbar>
+
+      <Box sx={{ 
+        p: 2,
+        backgroundColor: '#f8f9fa',
+        borderRadius: 1,
+        border: '1px solid #e2e8f0'
+      }}>
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          color: '#2c3e50',
+          mb: 2
+        }}>
+          <Typography sx={{ width: '120px', fontWeight: 500 }}>서버 상태:</Typography>
+          <Typography sx={{ 
+            color: config.server.port ? '#10b981' : '#ef4444',
+            fontWeight: 500
+          }}>
+            {config.server.port ? '설정됨' : '설정되지 않음'}
           </Typography>
-          <Button
-            variant="contained"
-            startIcon={<SettingsIcon />}
-            onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-          >
-            {isSettingsOpen ? '설정 닫기' : '설정 열기'}
-          </Button>
         </Box>
 
-        {error && (
-          <Typography color="error" sx={{ mb: 2 }}>
-            {error}
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center',
+          color: '#2c3e50',
+          mb: 2
+        }}>
+          <Typography sx={{ width: '120px', fontWeight: 500 }}>데이터베이스:</Typography>
+          <Typography sx={{ 
+            color: config.database.database ? '#10b981' : '#ef4444',
+            fontWeight: 500
+          }}>
+            {config.database.database ? '연결됨' : '연결되지 않음'}
           </Typography>
-        )}
+        </Box>
 
-        {isSettingsOpen && (
-          <>
-            <Card sx={{ mb: 3 }}>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  기본 설정
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <TextField
-                    label="Base URL"
-                    value={baseUrl}
-                    onChange={(e) => setBaseUrl(e.target.value)}
-                    fullWidth
-                  />
-                  <Button
-                    variant="contained"
-                    onClick={handleSaveBaseUrl}
-                    disabled={isLoading}
-                    startIcon={<SaveIcon />}
-                  >
-                    저장
-                  </Button>
-                </Box>
-              </CardContent>
-            </Card>
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center',
+          color: '#2c3e50'
+        }}>
+          <Typography sx={{ width: '120px', fontWeight: 500 }}>로깅:</Typography>
+          <Typography sx={{ 
+            color: config.logging.level ? '#10b981' : '#ef4444',
+            fontWeight: 500
+          }}>
+            {config.logging.level ? '활성화됨' : '비활성화됨'}
+          </Typography>
+        </Box>
+      </Box>
 
-            <Card sx={{ mb: 3 }}>
-              <CardContent>
-                <ApiKeyManager
-                  models={mcpConfig.models || []}
-                  onApiKeyChange={async (modelId, apiKey) => {
-                    const updatedConfig = {
-                      ...mcpConfig,
-                      apiKeys: { ...mcpConfig.apiKeys, [modelId]: apiKey }
-                    };
-                    await onConfigChange(updatedConfig);
-                    setMcpConfig(updatedConfig);
-                    saveMcpConfig(updatedConfig);
-                  }}
-                />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent>
-                <ToolManager
-                  tools={mcpConfig.tools || []}
-                  onToolsChange={handleToolsChange}
-                />
-              </CardContent>
-            </Card>
-          </>
-        )}
-      </Paper>
+      <Dialog 
+        open={isDialogOpen} 
+        onClose={() => setIsDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            backgroundColor: '#ffffff',
+            borderRadius: 2
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          bgcolor: '#f8f9fa',
+          color: '#2c3e50',
+          fontWeight: 500,
+          borderBottom: '1px solid #e2e8f0'
+        }}>
+          MCP 설정 수정
+        </DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
+          <TextField
+            multiline
+            fullWidth
+            rows={20}
+            value={configText}
+            onChange={(e) => {
+              setConfigText(e.target.value);
+              setJsonError('');
+            }}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                fontFamily: 'monospace',
+                fontSize: '0.875rem',
+                color: '#2c3e50',
+                backgroundColor: '#ffffff',
+                '& fieldset': {
+                  borderColor: '#e2e8f0'
+                },
+                '&:hover fieldset': {
+                  borderColor: '#4b6bfb'
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#4b6bfb'
+                }
+              }
+            }}
+          />
+          {jsonError && (
+            <Typography 
+              color="error" 
+              sx={{ 
+                mt: 1, 
+                fontSize: '0.875rem'
+              }}
+            >
+              {jsonError}
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ 
+          p: 2, 
+          bgcolor: '#f8f9fa',
+          borderTop: '1px solid #e2e8f0'
+        }}>
+          <Button 
+            onClick={() => setIsDialogOpen(false)}
+            sx={{ 
+              color: '#64748b',
+              '&:hover': {
+                backgroundColor: '#f1f5f9'
+              }
+            }}
+          >
+            취소
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleSave}
+            disabled={isLoading}
+            sx={{
+              bgcolor: '#4b6bfb',
+              '&:hover': {
+                bgcolor: '#3955cc',
+              }
+            }}
+          >
+            {isLoading ? <CircularProgress size={24} /> : '저장'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
